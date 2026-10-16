@@ -11,14 +11,14 @@ Lokaler visueller Spielassistent für Android (min. Android 8 / API 26). Die App
 - Aufnahme verarbeitet aktuelle `ImageReader.acquireLatestImage()`-Frames, maximal fünf pro Sekunde; die Detector-Eingabe wird auf maximal 480 Pixel Kantenlänge skaliert.
 - Detector-Aufrufdauer wird mit `elapsedRealtimeNanos()` gemessen; FPS basiert auf tatsächlich verarbeiteten Frames. Ergebnisalter wird aktualisiert; nach 1000 ms werden Boxen ausgeblendet.
 - Die Detector-Schnittstelle definiert Koordinaten als Pixelkoordinaten des an `detect()` übergebenen Bildes. Da aktuell kein Modell geladen ist, gibt es keine Boxen und die Transformation kann nicht mit echten Modellreferenzpunkten auf dem Galaxy A56 verifiziert werden.
-- Keine Audioaufnahme, keine absichtliche Bilddatei-Speicherung und keine Netzwerkübertragung.
+- Keine Audioaufnahme und keine absichtliche Bilddatei-Speicherung. Netzwerkzugriff ist ausschließlich für den ausdrücklich manuell gestarteten einmaligen Roboflow-URL-Test ergänzt; die Bildschirmframes werden dabei nicht übertragen.
 - STOPP beendet MediaProjection, ImageReader, VirtualDisplay, Worker-Thread und Overlay-Fenster.
 
 ## Blocker: echtes Modell fehlt
 
 Im Repository ist **kein trainiertes Modell** enthalten. `NoModelDetector` meldet „Kein Modell geladen“ und gibt immer eine leere Liste zurück. Daher gibt es keine echten Erkennungen und keine Bounding Boxes. Die Overlay-Schicht ist implementiert, aber derzeit keine KI-Erkennung.
 
-Für die lokale Integration wird das tatsächlich exportierte Modell benötigt, beispielsweise als konkretes TFLite- oder ONNX-Artefakt, einschließlich Eingabegröße, Farb-/Normalisierungsregeln, Klassenreihenfolge, Ausgabetensorformat und NMS-Regeln. Die angegebenen Roboflow-Workspace-/Projekt-/Workflow-IDs allein bestätigen keinen Modellzugriff. In dieser Änderung wurde kein Roboflow-Endpunkt aufgerufen, keine API-Zugangsdaten hinterlegt und kein Cloud-Job gestartet. Ein optionaler Cloud-Diagnosetest ist nicht integriert. Die zuvor erwähnte Cloud-Laufzeit von etwa 11,8 Sekunden wäre nicht echtzeitfähig.
+Für die lokale Integration wird das tatsächlich exportierte Modell benötigt, beispielsweise als konkretes TFLite- oder ONNX-Artefakt, einschließlich Eingabegröße, Farb-/Normalisierungsregeln, Klassenreihenfolge, Ausgabetensorformat und NMS-Regeln. Die angegebenen Roboflow-Workspace-/Projekt-/Workflow-IDs allein bestätigen keinen Modellzugriff. Ein manueller Roboflow-Cloud-Diagnosetest ist jetzt in der App integriert: API-Schlüssel und eine öffentlich erreichbare Bild-URL eingeben und genau einmal „Roboflow-Test starten“ drücken. Der Schlüssel wird nicht gespeichert oder protokolliert und nach dem Versuch aus dem Eingabefeld gelöscht. Die App zeigt den echten HTTP-Status, erkannte Antwortfelder und den Antworttext an. Es gibt keine automatische Wiederholung, keine periodischen Anfragen und keinen Upload des aktuellen Bildschirmbilds. Der Test verwendet nur die eingegebene Bild-URL. Die Integration ist erst bestätigt, wenn sie auf dem Gerät mit einem gültigen Schlüssel und einer erreichbaren Bild-URL erfolgreich antwortet. Die zuvor beobachtete Cloud-Laufzeit von etwa 11,8 Sekunden wäre nicht echtzeitfähig.
 
 Vorgesehene Klassen: `player`, `enemy`, `bush`, `poison_zone`, `play_button`, `exit_button`, `play_again_button`, `defeated_indicator`. Scores sollen später unverändert aus dem Modell stammen und sind keine kalibrierten Wahrscheinlichkeiten. Unsichtbare Gegner sind nicht zuverlässig erkennbar; eine `poison_zone`-Box ist keine exakte Giftzonengrenze.
 
@@ -31,6 +31,16 @@ Die virtuelle Anzeige wird bei Displaygrößen-/Rotationsänderungen neu konfigu
 ## Touch-/Accessibility-Status
 
 Es gibt keinen AccessibilityService und keine automatische Touch-Steuerung. Android stellt `AccessibilityService.dispatchGesture()` für einen ausdrücklich eingerichteten AccessibilityService mit vom Nutzer erteilter Freigabe bereit. Ein erfolgreicher API-Aufruf würde nicht beweisen, dass das Spiel die Geste akzeptiert. Isolierter Gestentest, manuelle Kalibrierung, Vordergrund-App-Prüfung, Abbruchlogik und gleichzeitige Gesten sind nicht implementiert. Nach Neustart bleibt Auto-Play AUS.
+
+## Manueller Roboflow-Cloud-Test
+
+1. App öffnen und zum Abschnitt „Roboflow-Cloud-Test“ scrollen.
+2. Einen gültigen Test-API-Schlüssel direkt in das temporäre Passwortfeld eingeben (nicht in GitHub oder Chat posten).
+3. Eine öffentlich erreichbare Bild-URL eingeben.
+4. Einmal auf „Roboflow-Test starten (1 Anfrage)“ tippen.
+5. HTTP-Status und echte Antwort prüfen. `401`/`403` deutet auf Authentifizierung/Berechtigung hin; andere Fehler werden mit Antworttext angezeigt. Eine leere Vorhersageliste wird nicht als Erkennung ausgegeben.
+
+Die lokale Bildschirmaufnahme und der Cloud-Test sind getrennt. Der URL-Test ist keine Live-Erkennung und zeichnet seine Cloud-Ergebnisse nicht auf das Spiel-Overlay.
 
 ## Build und Geräteprüfung
 
