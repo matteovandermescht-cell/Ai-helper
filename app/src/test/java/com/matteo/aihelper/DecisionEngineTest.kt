@@ -19,8 +19,8 @@ class DecisionEngineTest {
     fun lobbyRequiresThreeConsistentObservations() {
         val engine = DecisionEngine()
         val lobby = listOf(Detection("play_button", 0.9f, 1f, 1f, 2f, 2f))
-        assertEquals(GameState.INACTIVE, engine.observe(lobby, 100L).state)
-        assertEquals(GameState.INACTIVE, engine.observe(lobby, 300L).state)
+        assertEquals(GameState.UNCLEAR, engine.observe(lobby, 100L).state)
+        assertEquals(GameState.UNCLEAR, engine.observe(lobby, 300L).state)
         assertEquals(GameState.LOBBY, engine.observe(lobby, 500L).state)
     }
 
