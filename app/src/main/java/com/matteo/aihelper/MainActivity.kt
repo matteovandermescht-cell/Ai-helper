@@ -148,8 +148,22 @@ class MainActivity : Activity() {
             try {
                 val result = RoboflowWorkflowClient.runOnce(key, imageUrl)
                 runOnUiThread {
-                    cloudStatus.text = "HTTP ${result.httpStatus} · Vorhersageanzahl: ${result.predictionCount?.toString() ?: "im Antwortformat nicht gefunden"} · Ausgabefelder: ${result.outputKeys.joinToString().ifBlank { "keine erkannt" }}"
-                    cloudResponse.text = result.rawBody.take(6000).ifBlank { "(Leere Antwort)" }
+                    cloudStatus.text = result.summary
+                    val boxLines = result.detections.take(20).mapIndexed { index, d ->
+                        "${index + 1}. ${d.label} · ${(d.confidence * 100).toInt()}% · " +
+                            "Box [L=${d.left.toInt()}, O=${d.top.toInt()}, R=${d.right.toInt()}, U=${d.bottom.toInt()}]"
+                    }
+                    cloudResponse.text = buildString {
+                        append("Ausgabefelder: ")
+                        append(result.outputKeys.joinToString().ifBlank { "keine erkannt" })
+                        append("\\nBoxen: ")
+                        append(result.predictionCount?.toString() ?: "nicht auswertbar")
+                        if (boxLines.isNotEmpty()) {
+                            append("\\n")
+                            append(boxLines.joinToString("\\n"))
+                        }
+                        if (result.detections.size > 20) append("\\n… weitere Boxen nicht angezeigt")
+                    }
                     apiKeyInput.text?.clear()
                     cloudTestButton.isEnabled = true
                     cloudTestRunning.set(false)
