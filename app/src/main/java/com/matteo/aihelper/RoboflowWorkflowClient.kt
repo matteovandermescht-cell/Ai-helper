@@ -192,37 +192,32 @@ object RoboflowWorkflowClient {
     private fun collectPredictions(value: Any?, out: MutableList<Detection>) {
         when (value) {
             is JSONObject -> {
+                val outputName = value.optString("name")
                 val predictionsValue = value.opt("predictions")
                 if (predictionsValue is JSONArray) {
-                    for (i in 0 until predictionsValue.length()) {
-                        val p = predictionsValue.optJSONObject(i) ?: continue
-                        val label = sequenceOf("class", "label", "class_name")
-                            .map { p.optString(it) }
-                            .firstOrNull { it.isNotBlank() && it != "null" } ?: continue
-                        val x = number(p, "x") ?: continue
-                        val y = number(p, "y") ?: continue
-                        val width = number(p, "width") ?: continue
-                        val height = number(p, "height") ?: continue
-                        val confidence = number(p, "confidence") ?: continue
-                        if (!x.isFinite() || !y.isFinite() || !width.isFinite() || !height.isFinite() ||
-                            !confidence.isFinite() || width <= 0f || height <= 0f) continue
-                        // Roboflow x/y are box centers, not top-left corners.
-                        out.add(Detection(
-                            label = label,
-                            confidence = confidence.coerceIn(0f, 1f),
-                            left = x - width / 2f,
-                            top = y - height / 2f,
-                            right = x + width / 2f,
-                            bottom = y + height / 2f
-                        ))
-                    }
+                    parsePredictionArray(predictionsValue, out)
                 } else if (predictionsValue is JSONObject) {
                     collectPredictions(predictionsValue, out)
+                }
+                // Roboflow Workflows may wrap named outputs as {name:"predictions", value:...}.
+                if (outputName.equals("predictions", ignoreCase = true)) {
+                    when (val namedValue = value.opt("value")) {
+                        is JSONArray -> parsePredictionArray(namedValue, out)
+                        is JSONObject -> collectPredictions(namedValue, out)
+                        is String -> {
+                            val trimmed = namedValue.trim()
+                            if (trimmed.startsWith("{") && trimmed.length < 1_000_000) {
+                                try { collectPredictions(JSONObject(trimmed), out) } catch (_: Exception) {}
+                            } else if (trimmed.startsWith("[") && trimmed.length < 1_000_000) {
+                                try { parsePredictionArray(JSONArray(trimmed), out) } catch (_: Exception) {}
+                            }
+                        }
+                    }
                 }
                 val it = value.keys()
                 while (it.hasNext()) {
                     val key = it.next()
-                    if (key != "output_image" && key != "image" && key != "predictions") {
+                    if (key != "output_image" && key != "image" && key != "predictions" && key != "value") {
                         collectPredictions(value.opt(key), out)
                     }
                 }
@@ -232,8 +227,35 @@ object RoboflowWorkflowClient {
                 val trimmed = value.trim()
                 if (trimmed.startsWith("{") && trimmed.length < 1_000_000) {
                     try { collectPredictions(JSONObject(trimmed), out) } catch (_: Exception) {}
+                } else if (trimmed.startsWith("[") && trimmed.length < 1_000_000) {
+                    try { parsePredictionArray(JSONArray(trimmed), out) } catch (_: Exception) {}
                 }
             }
+        }
+    }
+
+    private fun parsePredictionArray(array: JSONArray, out: MutableList<Detection>) {
+        for (i in 0 until array.length()) {
+            val p = array.optJSONObject(i) ?: continue
+            val label = sequenceOf("class", "label", "class_name")
+                .map { p.optString(it) }
+                .firstOrNull { it.isNotBlank() && it != "null" } ?: continue
+            val x = number(p, "x") ?: continue
+            val y = number(p, "y") ?: continue
+            val width = number(p, "width") ?: continue
+            val height = number(p, "height") ?: continue
+            val confidence = number(p, "confidence") ?: continue
+            if (!x.isFinite() || !y.isFinite() || !width.isFinite() || !height.isFinite() ||
+                !confidence.isFinite() || width <= 0f || height <= 0f) continue
+            // Roboflow x/y are box centers, not top-left corners.
+            out.add(Detection(
+                label = label,
+                confidence = confidence.coerceIn(0f, 1f),
+                left = x - width / 2f,
+                top = y - height / 2f,
+                right = x + width / 2f,
+                bottom = y + height / 2f
+            ))
         }
     }
 
