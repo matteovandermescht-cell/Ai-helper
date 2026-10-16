@@ -135,8 +135,7 @@ class CaptureService : Service() {
             ) else cropped
             if (preview !== cropped) cropped.recycle()
             sendBroadcast(Intent(ACTION_FRAME).setPackage(packageName).putExtra(EXTRA_BITMAP, preview))
-            // The broadcast receiver owns the display reference; recycle our frame after posting.
-            workerHandler?.postDelayed({ if (!preview.isRecycled) preview.recycle() }, 500L)
+            // Do not recycle after broadcast: the Activity ImageView may still be drawing this bitmap.
         } catch (_: Exception) {
             // Frames can become invalid during rotation; the next latest frame will be used.
         } finally {
