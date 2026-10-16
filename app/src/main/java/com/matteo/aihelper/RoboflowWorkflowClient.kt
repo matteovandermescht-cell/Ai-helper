@@ -138,7 +138,10 @@ object RoboflowWorkflowClient {
 
     private fun containsPredictionPayload(value: Any?): Boolean = when (value) {
         is JSONObject -> {
-            if (value.has("predictions") && value.opt("predictions") is JSONArray) true
+            val namedPredictions = value.optString("name").equals("predictions", ignoreCase = true) &&
+                (value.opt("value") is JSONArray || value.opt("value") is JSONObject ||
+                    value.opt("value") is String)
+            if ((value.has("predictions") && value.opt("predictions") is JSONArray) || namedPredictions) true
             else {
                 val it = value.keys()
                 var found = false
