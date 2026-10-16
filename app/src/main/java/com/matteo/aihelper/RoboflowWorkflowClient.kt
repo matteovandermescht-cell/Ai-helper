@@ -103,10 +103,10 @@ object RoboflowWorkflowClient {
     private fun collectPredictions(value: Any?, out: MutableList<Detection>) {
         when (value) {
             is JSONObject -> {
-                val predictions = value.optJSONArray("predictions")
-                if (predictions != null) {
-                    for (i in 0 until predictions.length()) {
-                        val p = predictions.optJSONObject(i) ?: continue
+                val predictionsValue = value.opt("predictions")
+                if (predictionsValue is JSONArray) {
+                    for (i in 0 until predictionsValue.length()) {
+                        val p = predictionsValue.optJSONObject(i) ?: continue
                         val label = sequenceOf("class", "label", "class_name")
                             .map { p.optString(it) }
                             .firstOrNull { it.isNotBlank() && it != "null" } ?: continue
@@ -127,6 +127,8 @@ object RoboflowWorkflowClient {
                             bottom = y + height / 2f
                         ))
                     }
+                } else if (predictionsValue is JSONObject) {
+                    collectPredictions(predictionsValue, out)
                 }
                 val it = value.keys()
                 while (it.hasNext()) {
