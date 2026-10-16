@@ -23,9 +23,8 @@ object RoboflowWorkflowClient {
 
     fun runOnce(apiKey: String, imageUrl: String): Result {
         require(apiKey.isNotBlank()) { "Bitte einen API-Schlüssel eingeben." }
-        require(imageUrl.startsWith("https://", ignoreCase = true) ||
-                imageUrl.startsWith("http://", ignoreCase = true)) {
-            "Bitte eine gültige http(s)-Bild-URL eingeben."
+        require(imageUrl.startsWith("https://", ignoreCase = true)) {
+            "Bitte eine öffentlich erreichbare HTTPS-Bild-URL eingeben."
         }
 
         val encodedKey = URLEncoder.encode(apiKey.trim(), "UTF-8")
