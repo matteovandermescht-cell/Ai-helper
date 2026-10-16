@@ -44,7 +44,13 @@ class DecisionEngine(
                 "Trockenlauf pausiert: keine aktuelle Beobachtung; keine Eingabe ausgelöst."
             )
         }
-        val suggestion = when (stableState) {
+        // Do not keep advertising the previous state while a transition is unconfirmed.
+        val visibleState = if (consecutive >= confirmationsRequired && candidate == stableState) {
+            stableState
+        } else {
+            GameState.UNCLEAR
+        }
+        val suggestion = when (visibleState) {
             GameState.INACTIVE -> "Aufnahme inaktiv."
             GameState.LOBBY -> "Start sichtbar: Start nur vorschlagen; nicht automatisch tippen."
             GameState.SEARCHING -> "Spielsuche: warten; Zustand nicht automatisch verändern."
@@ -55,7 +61,7 @@ class DecisionEngine(
             GameState.UNCLEAR -> "Zustand unklar: keine Aktion vorschlagen."
             GameState.ERROR -> "Technischer Fehler: Steuerung gesperrt."
         }
-        return DecisionSnapshot(stableState, candidate, consecutive, suggestion)
+        return DecisionSnapshot(visibleState, candidate, consecutive, suggestion)
     }
 
     fun reset() {
