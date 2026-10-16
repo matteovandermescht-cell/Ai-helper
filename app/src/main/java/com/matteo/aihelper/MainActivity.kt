@@ -98,7 +98,7 @@ class MainActivity : Activity() {
         root.addView(cloudTestButton, matchWrap())
         cloudStatus = label("Cloud-Test noch nicht ausgeführt", 14f, 0xFF80CBC4.toInt())
         root.addView(cloudStatus)
-        cloudResponse = label("", 12f, 0xFFE1F5FE.toInt()).apply { isTextSelectable = true }
+        cloudResponse = label("", 12f, 0xFFE1F5FE.toInt()).apply { setTextIsSelectable(true) }
         root.addView(cloudResponse, matchWrap())
 
         root.addView(label("Bildschirm-Overlay", 18f))
