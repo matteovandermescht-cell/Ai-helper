@@ -46,6 +46,8 @@ class OverlayController(
     private var modelH = 1
     private var frameW = 1
     private var frameH = 1
+    private var currentModelName = "Kein Modell geladen"
+    private var currentModelLoaded = false
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -87,7 +89,9 @@ class OverlayController(
             modelH = max(1, inferenceHeight)
             frameW = max(1, frameWidth)
             frameH = max(1, frameHeight)
-            resultAt = SystemClock.elapsedRealtime()
+            currentModelName = modelName
+            currentModelLoaded = modelLoaded
+            resultAt = if (detectionOn && modelLoaded) SystemClock.elapsedRealtime() else 0L
             drawing?.setFrame(if (detectionOn && modelLoaded) found else emptyList(), modelW, modelH, frameW, frameH)
             val classes = found.groupingBy { it.label }.eachCount().entries.joinToString { it.key + "=" + it.value }.ifBlank { "keine" }
             debugInfo = "Frame " + frameW + "x" + frameH + "; Modellbild " + modelW + "x" + modelH +
@@ -213,9 +217,15 @@ class OverlayController(
 
     private fun refreshStatus() {
         val age = if (resultAt == 0L) null else SystemClock.elapsedRealtime() - resultAt
-        val rec = if (age != null && age <= STALE_MS) "AN" else "WARTET"
-        val ageText = if (age == null) "—" else age.toString() + " ms"
-        statusText?.text = "Aufnahme: " + rec + " · Modell: Kein Modell geladen\nSteuerung: AUS · Ergebnisalter: " + ageText
+        val rec = when {
+            !currentModelLoaded -> "KEIN MODELL"
+            !detectionOn -> "AUS"
+            age != null && age <= STALE_MS -> "AN"
+            else -> "VERALTET"
+        }
+        val ageText = if (age == null) "keine Vorhersage" else age.toString() + " ms"
+        statusText?.text = "Erkennung: " + if (detectionOn) "AN" else "AUS" +
+            " · " + rec + "\nModell: " + currentModelName + "\nSteuerung: AUS · Ergebnisalter: " + ageText
         debugText?.text = debugInfo + if (age == null) "\nNoch kein Ergebnis" else "\nErgebnisalter aktuell: " + age + " ms"
     }
 
