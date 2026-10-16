@@ -81,7 +81,7 @@ class OverlayController(
     }
 
     fun update(found: List<Detection>, inferenceWidth: Int, inferenceHeight: Int,
-               frameWidth: Int, frameHeight: Int, durationMs: Long, fps: Float,
+               frameWidth: Int, frameHeight: Int, durationMs: Long?, fps: Float,
                rotation: Int, modelName: String, modelLoaded: Boolean,
                decision: DecisionSnapshot) {
         handler.post {
@@ -96,7 +96,8 @@ class OverlayController(
             val classes = found.groupingBy { it.label }.eachCount().entries.joinToString { it.key + "=" + it.value }.ifBlank { "keine" }
             debugInfo = "Frame " + frameW + "x" + frameH + "; Modellbild " + modelW + "x" + modelH +
                 "; Rotation " + rotation + " Grad\nModell: " + modelName + "; geladen: " + modelLoaded +
-                "\nMessdauer: " + durationMs + " ms; gemessene FPS: " + String.format(Locale.US, "%.2f", fps) +
+                "\nInference: " + (durationMs?.let { it.toString() + " ms" } ?: "nicht ausgeführt") +
+                "; verarbeitete Frames/s: " + String.format(Locale.US, "%.2f", fps) +
                 "\nKlassen: " + classes +
                 "\nZustand: " + decision.state + " (Kandidat: " + decision.candidate +
                 ", Folgebeobachtungen: " + decision.consecutiveObservations + ")" +
