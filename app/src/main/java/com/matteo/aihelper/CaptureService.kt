@@ -39,6 +39,7 @@ class CaptureService : Service() {
     @Volatile private var measuredFps = 0f
     private val processing = AtomicBoolean(false)
     private val detector: Detector = NoModelDetector()
+    private val decisionEngine = DecisionEngine()
     private var overlay: OverlayController? = null
     @Volatile private var detectionEnabled = true
 
@@ -187,8 +188,18 @@ class CaptureService : Service() {
                 android.view.Surface.ROTATION_270 -> 270
                 else -> 0
             }
+            val visibleDetections = if (detectionEnabled && detector.isModelLoaded) found else emptyList()
+            val decision = if (detector.isModelLoaded && detectionEnabled) {
+                decisionEngine.observe(visibleDetections, resultAt)
+            } else {
+                DecisionSnapshot(
+                    GameState.UNCLEAR, GameState.UNCLEAR, 0,
+                    if (!detector.isModelLoaded) "Trockenlauf blockiert: kein trainiertes Modell geladen."
+                    else "Erkennung ausgeschaltet: keine neue Zustandsentscheidung."
+                )
+            }
             overlay?.update(
-                if (detectionEnabled && detector.isModelLoaded) found else emptyList(),
+                visibleDetections,
                 inferenceBitmap!!.width,
                 inferenceBitmap!!.height,
                 image.width,
@@ -197,7 +208,8 @@ class CaptureService : Service() {
                 measuredFps,
                 rotationDegrees,
                 detector.displayName,
-                detector.isModelLoaded
+                detector.isModelLoaded,
+                decision
             )
 
             // Make a distinct preview bitmap; the worker bitmap is recycled below.
