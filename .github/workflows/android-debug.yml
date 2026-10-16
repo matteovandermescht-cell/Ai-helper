@@ -12,17 +12,20 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Gradle 8.9 for official wrapper generation
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Generate wrapper if absent
+      - name: Generate official Gradle wrapper if missing
         run: |
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            gradle wrapper --gradle-version 8.9
+            gradle wrapper --gradle-version 8.9 --distribution-type bin
           fi
+          test -f gradle/wrapper/gradle-wrapper.jar
       - name: Build debug APK
-        run: sh ./gradlew --no-daemon assembleDebug
-      - uses: actions/upload-artifact@v4
+        run: sh ./gradlew --no-daemon --stacktrace assembleDebug
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
         with:
           name: AI-Helper-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
