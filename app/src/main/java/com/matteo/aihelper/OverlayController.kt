@@ -81,23 +81,27 @@ class OverlayController(
     fun update(found: List<Detection>, inferenceWidth: Int, inferenceHeight: Int,
                frameWidth: Int, frameHeight: Int, durationMs: Long, fps: Float,
                rotation: Int, modelName: String, modelLoaded: Boolean) {
-        modelW = max(1, inferenceWidth)
-        modelH = max(1, inferenceHeight)
-        frameW = max(1, frameWidth)
-        frameH = max(1, frameHeight)
-        resultAt = SystemClock.elapsedRealtime()
-        drawing?.setFrame(if (detectionOn && modelLoaded) found else emptyList(), modelW, modelH, frameW, frameH)
-        val classes = found.groupingBy { it.label }.eachCount().entries.joinToString { it.key + "=" + it.value }.ifBlank { "keine" }
-        debugInfo = "Frame " + frameW + "x" + frameH + "; Modellbild " + modelW + "x" + modelH +
-            "; Rotation " + rotation + " Grad\nModell: " + modelName + "; geladen: " + modelLoaded +
-            "\nMessdauer: " + durationMs + " ms; gemessene FPS: " + String.format(Locale.US, "%.2f", fps) +
-            "\nKlassen: " + classes + "\nSteuerung blockiert: kein Modell geladen"
-        refreshStatus()
+        handler.post {
+            modelW = max(1, inferenceWidth)
+            modelH = max(1, inferenceHeight)
+            frameW = max(1, frameWidth)
+            frameH = max(1, frameHeight)
+            resultAt = SystemClock.elapsedRealtime()
+            drawing?.setFrame(if (detectionOn && modelLoaded) found else emptyList(), modelW, modelH, frameW, frameH)
+            val classes = found.groupingBy { it.label }.eachCount().entries.joinToString { it.key + "=" + it.value }.ifBlank { "keine" }
+            debugInfo = "Frame " + frameW + "x" + frameH + "; Modellbild " + modelW + "x" + modelH +
+                "; Rotation " + rotation + " Grad\nModell: " + modelName + "; geladen: " + modelLoaded +
+                "\nMessdauer: " + durationMs + " ms; gemessene FPS: " + String.format(Locale.US, "%.2f", fps) +
+                "\nKlassen: " + classes + "\nSteuerung blockiert: kein Modell geladen"
+            refreshStatus()
+        }
     }
 
     fun setCaptureStatus(text: String) {
-        debugInfo = text
-        refreshStatus()
+        handler.post {
+            debugInfo = text
+            refreshStatus()
+        }
     }
 
     fun stop() {
