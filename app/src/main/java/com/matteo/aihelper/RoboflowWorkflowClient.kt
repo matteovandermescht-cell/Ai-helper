@@ -113,7 +113,7 @@ object RoboflowWorkflowClient {
                         val y = number(p, "y") ?: continue
                         val width = number(p, "width") ?: continue
                         val height = number(p, "height") ?: continue
-                        val confidence = number(p, "confidence") ?: 0f
+                        val confidence = number(p, "confidence") ?: continue
                         if (!x.isFinite() || !y.isFinite() || !width.isFinite() || !height.isFinite() ||
                             !confidence.isFinite() || width <= 0f || height <= 0f) continue
                         // Roboflow x/y are box centers, not top-left corners.
