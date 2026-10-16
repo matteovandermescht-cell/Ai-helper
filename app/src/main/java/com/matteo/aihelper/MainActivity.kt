@@ -156,13 +156,13 @@ class MainActivity : Activity() {
                     cloudResponse.text = buildString {
                         append("Ausgabefelder: ")
                         append(result.outputKeys.joinToString().ifBlank { "keine erkannt" })
-                        append("\\nBoxen: ")
+                        append("\nBoxen: ")
                         append(result.predictionCount?.toString() ?: "nicht auswertbar")
                         if (boxLines.isNotEmpty()) {
-                            append("\\n")
-                            append(boxLines.joinToString("\\n"))
+                            append("\n")
+                            append(boxLines.joinToString("\n"))
                         }
-                        if (result.detections.size > 20) append("\\n… weitere Boxen nicht angezeigt")
+                        if (result.detections.size > 20) append("\n… weitere Boxen nicht angezeigt")
                     }
                     apiKeyInput.text?.clear()
                     cloudTestButton.isEnabled = true
