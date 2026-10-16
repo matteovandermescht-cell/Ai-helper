@@ -21,7 +21,7 @@ jobs:
             gradle wrapper --gradle-version 8.9
           fi
       - name: Build debug APK
-        run: ./gradlew --no-daemon assembleDebug
+        run: sh ./gradlew --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: AI-Helper-debug-apk
