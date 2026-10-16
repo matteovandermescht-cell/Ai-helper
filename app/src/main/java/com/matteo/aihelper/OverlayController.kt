@@ -176,6 +176,9 @@ class OverlayController(
         statusText = TextView(context).apply { setTextColor(0xFFE1F5FE.toInt()); textSize = 11f; setPadding(dp(3), dp(3), dp(3), dp(5)) }
         root.addView(statusText)
         val row1 = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        row1.addView(button("Beobachten") {
+            Toast.makeText(context, "Beobachten: vorhandene Erkennungen anzeigen, keine Eingaben.", Toast.LENGTH_SHORT).show()
+        })
         row1.addView(button("Erkennung AN/AUS") {
             detectionOn = !detectionOn
             if (!detectionOn) drawing?.setFrame(emptyList(), modelW, modelH, frameW, frameH)
