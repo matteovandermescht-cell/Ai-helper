@@ -18,7 +18,10 @@ object RoboflowWorkflowClient {
         val summary: String,
         val predictionCount: Int?,
         val outputKeys: List<String>,
-        val detections: List<Detection>
+        val detections: List<Detection>,
+        val messageText: String,
+        val responseBody: String,
+        val isDetectionResponse: Boolean
     )
 
     fun runOnce(apiKey: String, imageUrl: String): Result {
@@ -65,18 +68,68 @@ object RoboflowWorkflowClient {
             val unique = predictions.distinctBy {
                 listOf(it.label, it.confidence, it.left, it.top, it.right, it.bottom)
             }
-            val errorText = root?.optString("error")?.takeIf { it.isNotBlank() && it != "null" }
+            val messageText = root?.let { responseMessage(it) }.orEmpty()
+            val hasPredictionPayload = root?.let { containsPredictionPayload(it) } == true
+            val safeBody = redactSecrets(body, apiKey).take(MAX_RESPONSE_CHARS)
+            val detectionResponse = root != null && hasPredictionPayload && status in 200..299 && messageText.isBlank()
             val summary = when {
-                status !in 200..299 -> "HTTP $status" + (errorText?.let { ": $it" } ?: "")
+                status !in 200..299 -> "HTTP $status · Anfrage fehlgeschlagen"
                 root == null -> "HTTP $status · Antwort ist kein gültiges JSON"
-                else -> "HTTP $status · JSON erkannt · " + unique.size +
-                    " auswertbare Box(en). Live-Antwortformat noch nicht mit gültigem Schlüssel bestätigt."
+                !hasPredictionPayload && messageText.isNotBlank() ->
+                    "HTTP $status · API-/Workflow-Nachricht statt Erkennung: $messageText"
+                !hasPredictionPayload -> "HTTP $status · Keine Erkennungsausgabe gefunden; Antwortformat prüfen."
+                messageText.isNotBlank() -> "HTTP $status · Antwort enthält eine Fehlermeldung: $messageText"
+                else -> "HTTP $status · Erkennungsausgabe geparst · " + unique.size +
+                    " auswertbare Box(en). Das tatsächliche Live-Format muss auf dem Gerät bestätigt werden."
             }
-            return Result(status, summary, if (root == null) null else unique.size, keys.toList(), unique)
+            return Result(status, summary, if (detectionResponse) unique.size else null,
+                keys.toList(), unique, messageText, safeBody, detectionResponse)
         } finally {
             connection.disconnect()
         }
     }
+
+    private fun responseMessage(root: JSONObject): String {
+        for (key in listOf("message", "error", "detail", "errors")) {
+            val value = root.opt(key) ?: continue
+            if (value == JSONObject.NULL) continue
+            val text = value.toString().trim()
+            if (text.isNotBlank() && text != "null" && text != "{}" && text != "[]") return text
+        }
+        return ""
+    }
+
+    private fun containsPredictionPayload(value: Any?): Boolean = when (value) {
+        is JSONObject -> {
+            if (value.has("predictions") && value.opt("predictions") is JSONArray) true
+            else {
+                val it = value.keys()
+                var found = false
+                while (it.hasNext() && !found) {
+                    val key = it.next()
+                    if (key != "output_image" && key != "image") found = containsPredictionPayload(value.opt(key))
+                }
+                found
+            }
+        }
+        is JSONArray -> (0 until value.length()).any { containsPredictionPayload(value.opt(it)) }
+        is String -> {
+            val trimmed = value.trim()
+            if (trimmed.startsWith("{") && trimmed.length < 1_000_000) {
+                try { containsPredictionPayload(JSONObject(trimmed)) } catch (_: Exception) { false }
+            } else false
+        }
+        else -> false
+    }
+
+    private fun redactSecrets(body: String, apiKey: String): String {
+        var safe = if (apiKey.isBlank()) body else body.replace(apiKey.trim(), "[REDACTED]")
+        val pattern = Regex("(?i)(api_key\\s*[=:]\\s*)[^&\\s\\\"']+")
+        safe = pattern.replace(safe) { match -> match.groupValues[1] + "[REDACTED]" }
+        return safe
+    }
+
+    private const val MAX_RESPONSE_CHARS = 4000
 
     private fun collectNamedOutputKeys(value: Any?, keys: MutableSet<String>) {
         when (value) {
