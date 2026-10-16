@@ -37,7 +37,7 @@ jobs:
           fi
           test -f gradle/wrapper/gradle-wrapper.jar
       - name: Build debug APK
-        run: sh ./gradlew --no-daemon --stacktrace assembleDebug
+        run: sh ./gradlew --no-daemon --stacktrace testDebugUnitTest assembleDebug
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
