@@ -224,7 +224,7 @@ class OverlayController(
             else -> "VERALTET"
         }
         val ageText = if (age == null) "keine Vorhersage" else age.toString() + " ms"
-        statusText?.text = "Erkennung: " + if (detectionOn) "AN" else "AUS" +
+        statusText?.text = "Erkennung: " + (if (detectionOn) "AN" else "AUS") +
             " · " + rec + "\nModell: " + currentModelName + "\nSteuerung: AUS · Ergebnisalter: " + ageText
         debugText?.text = debugInfo + if (age == null) "\nNoch kein Ergebnis" else "\nErgebnisalter aktuell: " + age + " ms"
     }
