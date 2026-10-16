@@ -1,44 +1,41 @@
 # AI Helper — Android-Prototyp
 
-Ein minimaler visueller Spielassistent für Android (min. Android 8 / API 26). Bildschirmaufnahme läuft lokal über Android MediaProjection. **Es ist kein Modell geladen.** Es gibt keine automatischen Eingaben, keine Accessibility-Steuerung und keine Roboflow-/Netzwerkübertragung.
+Lokaler visueller Spielassistent für Android (min. Android 8 / API 26). Die App verwendet Android MediaProjection und benötigt zusätzlich die vom Nutzer erteilte Berechtigung „Über anderen Apps einblenden“ für die schwebende Anzeige.
 
-## Funktionen und Grenzen
+## Tatsächlicher Funktionsstand
 
-- Start/Stopp über die App und Stopp-Aktion in der laufenden Benachrichtigung.
-- Android zeigt vor jeder Bildschirmaufnahme einen ausdrücklichen Systemdialog.
-- Keine Audioaufnahme; Frames werden nicht auf Datenträger geschrieben und nicht über das Netzwerk übertragen.
-- Eine verkleinerte Live-Vorschau wird lokal in der App angezeigt. Frames werden gedrosselt und alte Frames verworfen.
-- Bei Displaygrößen-/Rotationsänderungen wird die virtuelle Anzeige angepasst und die ImageReader-Oberfläche erneuert. Während eines Rotationswechsels kann ein Frame verworfen werden.
-- `Detector` und `DecisionEngine` sind getrennt; der Detector meldet ausdrücklich „Kein Modell geladen“ und die Entscheidungslogik darf nur Hinweise ausgeben.
-- Die Erkennungsvisualisierung bleibt leer, solange kein echtes Modell eingebunden ist.
-- MediaProjection muss vom Nutzer freigegeben werden. Android/Samsung können Hintergrunddienste zusätzlich einschränken.
+- Bildschirmfreigabe wird ausdrücklich über den Android-Systemdialog angefragt.
+- Vor dem Erstellen der Overlay-Fenster wird die vom Nutzer erteilte Systemberechtigung für schwebende Fenster geprüft.
+- Transparente Vollbild-Zeichenfläche mit `TYPE_APPLICATION_OVERLAY` und `FLAG_NOT_TOUCHABLE`; sie soll Touch-Eingaben nicht abfangen. Die separate Bedienleiste ist verschiebbar, einklappbar und bedienbar.
+- Bedienleiste zeigt Aufnahme-/Modell-/Steuerungsstatus, Erkennung AN/AUS, Auto-Play AUS, Debug und roten STOPP-Knopf. Auto-Play ist nicht implementiert und kann nicht eingeschaltet werden.
+- Aufnahme verarbeitet aktuelle `ImageReader.acquireLatestImage()`-Frames, maximal fünf pro Sekunde; die Detector-Eingabe wird auf maximal 480 Pixel Kantenlänge skaliert.
+- Detector-Aufrufdauer wird mit `elapsedRealtimeNanos()` gemessen; FPS basiert auf tatsächlich verarbeiteten Frames. Ergebnisalter wird aktualisiert; nach 1000 ms werden Boxen ausgeblendet.
+- Die Detector-Schnittstelle definiert Koordinaten als Pixelkoordinaten des an `detect()` übergebenen Bildes. Da aktuell kein Modell geladen ist, gibt es keine Boxen und die Transformation kann nicht mit echten Modellreferenzpunkten auf dem Galaxy A56 verifiziert werden.
+- Keine Audioaufnahme, keine absichtliche Bilddatei-Speicherung und keine Netzwerkübertragung.
+- STOPP beendet MediaProjection, ImageReader, VirtualDisplay, Worker-Thread und Overlay-Fenster.
 
-## APK über GitHub Actions bauen
+## Blocker: echtes Modell fehlt
 
-1. Öffne den Tab **Actions** im Repository.
-2. Wähle **Android Debug APK**.
-3. Tippe **Run workflow** und bestätige.
-4. Nach erfolgreichem Lauf öffne den Workflow-Lauf und lade unter **Artifacts** die Datei **AI-Helper-debug-apk** herunter.
-5. Entpacke das ZIP; darin liegt `app-debug.apk`.
+Im Repository ist **kein trainiertes Modell** enthalten. `NoModelDetector` meldet „Kein Modell geladen“ und gibt immer eine leere Liste zurück. Daher gibt es keine echten Erkennungen und keine Bounding Boxes. Die Overlay-Schicht ist implementiert, aber derzeit keine KI-Erkennung.
+
+Für die lokale Integration wird das tatsächlich exportierte Modell benötigt, beispielsweise als konkretes TFLite- oder ONNX-Artefakt, einschließlich Eingabegröße, Farb-/Normalisierungsregeln, Klassenreihenfolge, Ausgabetensorformat und NMS-Regeln. Die angegebenen Roboflow-Workspace-/Projekt-/Workflow-IDs allein bestätigen keinen Modellzugriff. In dieser Änderung wurde kein Roboflow-Endpunkt aufgerufen, keine API-Zugangsdaten hinterlegt und kein Cloud-Job gestartet. Ein optionaler Cloud-Diagnosetest ist nicht integriert. Die zuvor erwähnte Cloud-Laufzeit von etwa 11,8 Sekunden wäre nicht echtzeitfähig.
+
+Vorgesehene Klassen: `player`, `enemy`, `bush`, `poison_zone`, `play_button`, `exit_button`, `play_again_button`, `defeated_indicator`. Scores sollen später unverändert aus dem Modell stammen und sind keine kalibrierten Wahrscheinlichkeiten. Unsichtbare Gegner sind nicht zuverlässig erkennbar; eine `poison_zone`-Box ist keine exakte Giftzonengrenze.
+
+## Overlay-Rückkopplung, Skalierung und Rotation
+
+Die Zeichenfläche nutzt ein separates Android-Overlay-Fenster mit `FLAG_NOT_TOUCHABLE`. Ob Overlay-/Systemfenster in einem konkreten MediaProjection-Modus mit aufgenommen werden, kann je nach Android-Version, Freigabeart und Gerät variieren; ein Ausschluss ist nicht garantiert. Vor einem Modelltest muss mit einem sichtbaren Testmuster geprüft werden, ob das Overlay im aufgenommenen Bild erscheint. Falls ja, muss der entsprechende Bereich maskiert oder die Aufnahmeart angepasst werden.
+
+Die virtuelle Anzeige wird bei Displaygrößen-/Rotationsänderungen neu konfiguriert. Die Bildvorschau und die spätere Modellkoordinatenabbildung verwenden die jeweilige Aufnahmegröße. Eine Prüfung anhand sichtbarer Referenzpunkte auf echter Hardware ist noch nicht erfolgt. Schwarze Ränder, die bereits im aufgenommenen Vollbild enthalten sind, bleiben Teil des Koordinatensystems; ein zugeschnittenes Modellbild benötigt zusätzliche Crop-Offsets, die derzeit nicht implementiert sind.
+
+## Touch-/Accessibility-Status
+
+Es gibt keinen AccessibilityService und keine automatische Touch-Steuerung. Android stellt `AccessibilityService.dispatchGesture()` für einen ausdrücklich eingerichteten AccessibilityService mit vom Nutzer erteilter Freigabe bereit. Ein erfolgreicher API-Aufruf würde nicht beweisen, dass das Spiel die Geste akzeptiert. Isolierter Gestentest, manuelle Kalibrierung, Vordergrund-App-Prüfung, Abbruchlogik und gleichzeitige Gesten sind nicht implementiert. Nach Neustart bleibt Auto-Play AUS.
+
+## Build und Geräteprüfung
 
 Workflow: [Android Debug APK](../../actions/workflows/android-debug.yml)
 
-## Installation am Galaxy A56 5G
+Nach erfolgreichem GitHub-Actions-Lauf: Workflow öffnen → **Artifacts** → `AI-Helper-debug-apk` herunterladen → ZIP entpacken → `app-debug.apk` installieren.
 
-1. Lade das Artifact-ZIP auf das Handy und entpacke es, oder lade es am PC herunter und übertrage die APK.
-2. Öffne `app-debug.apk`. Falls Android fragt, erlaube deinem Datei-/Browserprogramm die Installation unbekannter Apps.
-3. Starte **AI Helper**.
-4. Tippe **Bildschirmfreigabe starten** und bestätige den Android-Systemdialog.
-5. Die Vorschau wird in der App gezeigt. Über **Aufnahme stoppen** in der App oder **Stopp** in der Benachrichtigung beendest du die Aufnahme.
-
-## Reproduzierbarer Build
-
-- Android Gradle Plugin 8.7.3, Kotlin 2.0.21, Gradle 8.9, JDK 17.
-- Das offizielle Gradle Wrapper-JAR wird vom offiziellen Gradle-Wrapper-Task während des CI-Laufs erzeugt, falls es im Repository fehlt. Die Wrapper-Distribution wird über die festgelegte Gradle-8.9-URL geladen.
-- GitHub Actions führt `./gradlew --no-daemon assembleDebug` aus und lädt die Debug-APK 14 Tage als Artifact hoch.
-- Lokal: JDK 17 installieren, Gradle 8.9 einmal ausführen, dann `gradle wrapper --gradle-version 8.9` und `./gradlew assembleDebug`.
-
-## Noch nicht verifiziert
-
-- Der CI-Build muss tatsächlich laufen, bevor eine APK oder ein erfolgreiches Build-Ergebnis gemeldet werden kann.
-- Es wurde kein Test auf einem physischen Galaxy A56 durchgeführt; ein CI-Build beweist weder Gerätekompatibilität noch Echtzeitfähigkeit.
+Ein CI-Build beweist nicht, dass die App auf dem Samsung Galaxy A56 5G (SM-A566B/DS) getestet wurde. Gerätetest, Overlay-Touch-Passthrough, Rotations-/Referenzpunkttest und Prüfung der Overlay-Rückkopplung stehen noch aus.
