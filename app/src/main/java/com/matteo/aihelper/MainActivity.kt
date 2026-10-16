@@ -22,9 +22,10 @@ class MainActivity : Activity() {
     private var receiverRegistered = false
     private val captureRequest = 4102
     private val frameReceiver = object : BroadcastReceiver() {
+        @Suppress("DEPRECATION")
         override fun onReceive(context: Context?, intent: Intent?) {
-            val bitmap = if (Build.VERSION.SDK_INT >= 33) intent?.getParcelableExtra(CaptureService.EXTRA_BITMAP, Bitmap::class.java)
-                         else @Suppress("DEPRECATION") (intent?.getParcelableExtra(CaptureService.EXTRA_BITMAP) as? Bitmap)
+            val bitmap: Bitmap? = if (Build.VERSION.SDK_INT >= 33) intent?.getParcelableExtra(CaptureService.EXTRA_BITMAP, Bitmap::class.java)
+                                  else intent?.getParcelableExtra(CaptureService.EXTRA_BITMAP)
             if (bitmap != null) {
                 preview.setImageBitmap(bitmap)
                 previewStatus.text = "Lokale Live-Vorschau · keine Speicherung oder Übertragung"
