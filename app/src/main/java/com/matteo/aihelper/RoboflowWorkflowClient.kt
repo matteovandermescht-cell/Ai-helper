@@ -8,19 +8,17 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-/**
- * One-shot diagnostic call for a user-provided public image URL.
- * The API key is used only in this request and is never saved or logged.
- */
+/** One-shot diagnostic for a user-provided public image URL; never saves or logs the API key. */
 object RoboflowWorkflowClient {
     private const val ENDPOINT =
-        "https://serverless.roboflow.com/matteos-workspace-0ayrg/workflows/brawl-stars-spielassistent"
+        "https://serverless.roboflow.com/matteos-workspace-0ayrg/workflows/brawl-stars-entscheidungsprototyp-1792181498461"
 
     data class Result(
         val httpStatus: Int,
-        val rawBody: String,
+        val summary: String,
         val predictionCount: Int?,
-        val outputKeys: List<String>
+        val outputKeys: List<String>,
+        val detections: List<Detection>
     )
 
     fun runOnce(apiKey: String, imageUrl: String): Result {
@@ -57,38 +55,99 @@ object RoboflowWorkflowClient {
                 BufferedReader(InputStreamReader(input, Charsets.UTF_8)).use { it.readText() }
             }.orEmpty()
 
-            val keys = mutableListOf<String>()
-            var count: Int? = null
-            try {
-                val root = JSONObject(body)
-                val outputs = root.optJSONArray("outputs")
-                if (outputs != null) {
-                    for (i in 0 until outputs.length()) {
-                        val item = outputs.optJSONObject(i) ?: continue
-                        val value = item.opt("value")
-                        when (value) {
-                            is JSONObject -> {
-                                val innerPredictions = value.optJSONArray("predictions")
-                                if (innerPredictions != null) count = innerPredictions.length()
-                                value.keys().forEach { key -> if (!keys.contains(key)) keys.add(key) }
-                            }
-                            is JSONArray -> if (item.optString("name") == "predictions") count = value.length()
-                        }
-                        val name = item.optString("name")
-                        if (name.isNotBlank() && !keys.contains(name)) keys.add(name)
-                    }
-                }
-                if (count == null) {
-                    val predictions = root.optJSONArray("predictions")
-                    if (predictions != null) count = predictions.length()
-                }
-                root.keys().forEach { key -> if (!keys.contains(key)) keys.add(key) }
-            } catch (_: Exception) {
-                // Preserve the real response body for diagnostics even when it is not JSON.
+            val root = try { JSONObject(body) } catch (_: Exception) { null }
+            val keys = linkedSetOf<String>()
+            val predictions = mutableListOf<Detection>()
+            if (root != null) {
+                root.keys().forEach { keys.add(it) }
+                collectNamedOutputKeys(root, keys)
+                collectPredictions(root, predictions)
             }
-            return Result(status, body, count, keys)
+            val unique = predictions.distinctBy {
+                listOf(it.label, it.confidence, it.left, it.top, it.right, it.bottom)
+            }
+            val errorText = root?.optString("error")?.takeIf { it.isNotBlank() && it != "null" }
+            val summary = when {
+                status !in 200..299 -> "HTTP $status" + (errorText?.let { ": $it" } ?: "")
+                root == null -> "HTTP $status · Antwort ist kein gültiges JSON"
+                else -> "HTTP $status · JSON erkannt · " + unique.size +
+                    " auswertbare Box(en). Live-Antwortformat noch nicht mit gültigem Schlüssel bestätigt."
+            }
+            return Result(status, summary, if (root == null) null else unique.size, keys.toList(), unique)
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun collectNamedOutputKeys(value: Any?, keys: MutableSet<String>) {
+        when (value) {
+            is JSONObject -> {
+                val name = value.optString("name")
+                if (name.isNotBlank() && name != "null") keys.add(name)
+                val it = value.keys()
+                while (it.hasNext()) {
+                    val key = it.next()
+                    if (key != "output_image" && key != "image") collectNamedOutputKeys(value.opt(key), keys)
+                }
+            }
+            is JSONArray -> for (i in 0 until value.length()) collectNamedOutputKeys(value.opt(i), keys)
+            is String -> {
+                val trimmed = value.trim()
+                if (trimmed.startsWith("{") && trimmed.length < 1_000_000) {
+                    try { collectNamedOutputKeys(JSONObject(trimmed), keys) } catch (_: Exception) {}
+                }
+            }
+        }
+    }
+
+    private fun collectPredictions(value: Any?, out: MutableList<Detection>) {
+        when (value) {
+            is JSONObject -> {
+                val predictions = value.optJSONArray("predictions")
+                if (predictions != null) {
+                    for (i in 0 until predictions.length()) {
+                        val p = predictions.optJSONObject(i) ?: continue
+                        val label = sequenceOf("class", "label", "class_name")
+                            .map { p.optString(it) }
+                            .firstOrNull { it.isNotBlank() && it != "null" } ?: continue
+                        val x = number(p, "x") ?: continue
+                        val y = number(p, "y") ?: continue
+                        val width = number(p, "width") ?: continue
+                        val height = number(p, "height") ?: continue
+                        val confidence = number(p, "confidence") ?: 0f
+                        if (!x.isFinite() || !y.isFinite() || !width.isFinite() || !height.isFinite() ||
+                            !confidence.isFinite() || width <= 0f || height <= 0f) continue
+                        // Roboflow x/y are box centers, not top-left corners.
+                        out.add(Detection(
+                            label = label,
+                            confidence = confidence.coerceIn(0f, 1f),
+                            left = x - width / 2f,
+                            top = y - height / 2f,
+                            right = x + width / 2f,
+                            bottom = y + height / 2f
+                        ))
+                    }
+                }
+                val it = value.keys()
+                while (it.hasNext()) {
+                    val key = it.next()
+                    if (key != "output_image" && key != "image" && key != "predictions") {
+                        collectPredictions(value.opt(key), out)
+                    }
+                }
+            }
+            is JSONArray -> for (i in 0 until value.length()) collectPredictions(value.opt(i), out)
+            is String -> {
+                val trimmed = value.trim()
+                if (trimmed.startsWith("{") && trimmed.length < 1_000_000) {
+                    try { collectPredictions(JSONObject(trimmed), out) } catch (_: Exception) {}
+                }
+            }
+        }
+    }
+
+    private fun number(json: JSONObject, key: String): Float? {
+        if (!json.has(key) || json.isNull(key)) return null
+        return try { json.getDouble(key).toFloat() } catch (_: Exception) { null }
     }
 }
