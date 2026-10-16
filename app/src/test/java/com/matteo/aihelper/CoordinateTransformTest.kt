@@ -17,7 +17,7 @@ class CoordinateTransformTest {
     fun mapsWideTargetWithoutDistortingBox() {
         val box = Detection("player", 0.8f, 0f, 0f, 100f, 100f)
         val mapped = CoordinateTransform.mapBox(box, 100, 100, 300, 200)
-        assertArrayEquals(floatArrayOf(50f, 0f, 150f, 100f), mapped!!, 0.001f)
+        assertArrayEquals(floatArrayOf(50f, 0f, 250f, 200f), mapped!!, 0.001f)
     }
 
     @Test
