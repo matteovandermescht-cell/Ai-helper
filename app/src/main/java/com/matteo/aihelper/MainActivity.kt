@@ -59,12 +59,12 @@ class MainActivity : Activity() {
         }
         fun label(text: String, size: Float, color: Int = 0xFFFFFFFF.toInt()) =
             TextView(this).apply { this.text = text; textSize = size; setTextColor(color); setPadding(0, 6, 0, 6) }
-        root.addView(label("AI Helper", 30f))
+        root.addView(label("BrawlPilot", 30f))
         root.addView(label("Visueller Spielassistent · Prototyp", 16f, 0xFFB8C3D9.toInt()))
         status = label("Aufnahme gestoppt", 17f, 0xFF80CBC4.toInt())
         root.addView(status)
         root.addView(label("Lokaler Detector: Kein Modell geladen", 15f, 0xFFFFD180.toInt()))
-        root.addView(label("Auto-Play: AUS · keine automatische Steuerung", 13f, 0xFFFFCC80.toInt()))
+        root.addView(label("Pilotmodus gesperrt · Eingabesteuerung noch nicht implementiert", 13f, 0xFFFFCC80.toInt()))
 
         root.addView(label("Roboflow-Cloud-Test · manuell und einmalig", 18f))
         root.addView(label(
@@ -154,15 +154,23 @@ class MainActivity : Activity() {
                             "Box [L=${d.left.toInt()}, O=${d.top.toInt()}, R=${d.right.toInt()}, U=${d.bottom.toInt()}]"
                     }
                     cloudResponse.text = buildString {
-                        append("Ausgabefelder: ")
+                        append("HTTP-Statuscode: ")
+                        append(result.httpStatus)
+                        append("\nNachricht: ")
+                        append(result.messageText.ifBlank { "Keine message/error/detail-Nachricht in der Antwort." })
+                        append("\nAusgabefelder: ")
                         append(result.outputKeys.joinToString().ifBlank { "keine erkannt" })
+                        append("\nErkennungsausgabe: ")
+                        append(if (result.isDetectionResponse) "ja" else "NEIN · nicht als Erkennung gewertet")
                         append("\nBoxen: ")
-                        append(result.predictionCount?.toString() ?: "nicht auswertbar")
+                        append(result.predictionCount?.toString() ?: "nicht auswertbar (keine gültige Erkennungsausgabe)")
                         if (boxLines.isNotEmpty()) {
                             append("\n")
                             append(boxLines.joinToString("\n"))
                         }
                         if (result.detections.size > 20) append("\n… weitere Boxen nicht angezeigt")
+                        append("\n\nAntworttext (gekürzt, Schlüssel redigiert):\n")
+                        append(result.responseBody.ifBlank { "(leere Antwort)" })
                     }
                     apiKeyInput.text?.clear()
                     cloudTestButton.isEnabled = true
@@ -171,7 +179,7 @@ class MainActivity : Activity() {
             } catch (e: Exception) {
                 runOnUiThread {
                     cloudStatus.text = "Cloud-Test fehlgeschlagen: ${e.message ?: e.javaClass.simpleName}"
-                    cloudResponse.text = "Es wurden keine Erkennungen erfunden. Prüfe Schlüssel, Bild-URL und Netzwerk."
+                    cloudResponse.text = "Kein HTTP-Status verfügbar (Verbindungs-/TLS-Fehler vor einer HTTP-Antwort). Es wurden keine Erkennungen erfunden. Schlüssel wurde nicht angezeigt."
                     apiKeyInput.text?.clear()
                     cloudTestButton.isEnabled = true
                     cloudTestRunning.set(false)
