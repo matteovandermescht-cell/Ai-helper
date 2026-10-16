@@ -157,9 +157,8 @@ class OverlayController(
         header.addView(title, LinearLayout.LayoutParams(0, dp(38), 1f))
         header.addView(button("−") { collapsed = !collapsed; updatePanelBody() })
         header.addView(button("×") {
-            onStopAutoPlay()
-            removePanel()
-            Toast.makeText(context, "Bedienleiste geschlossen; Auto-Play bleibt AUS.", Toast.LENGTH_SHORT).show()
+            // Closing the panel must not leave an invisible capture/overlay session running.
+            onStop()
         })
         root.addView(header)
         statusText = TextView(context).apply { setTextColor(0xFFE1F5FE.toInt()); textSize = 11f; setPadding(dp(3), dp(3), dp(3), dp(5)) }
@@ -171,9 +170,13 @@ class OverlayController(
             onDetectionToggle(detectionOn)
             refreshStatus()
         })
-        row1.addView(button("Auto-Play AUS") {
+        row1.addView(button("Auto-Play gesperrt") {
             onStopAutoPlay()
-            Toast.makeText(context, "Auto-Play blockiert: Kein Modell geladen; es werden keine Gesten ausgeführt.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Auto-Play gesperrt: kein trainiertes Modell, keine validierte Koordinatenkalibrierung und keine Eingabesteuerung.", Toast.LENGTH_LONG).show()
+        }.apply {
+            isEnabled = false
+            alpha = 0.65f
+            contentDescription = "Auto-Play deaktiviert: Modell, Kalibrierung und Eingabesteuerung fehlen"
         })
         root.addView(row1)
         val row2 = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
