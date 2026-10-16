@@ -92,9 +92,46 @@ object RoboflowWorkflowClient {
     private fun responseMessage(root: JSONObject): String {
         for (key in listOf("message", "error", "detail", "errors")) {
             val value = root.opt(key) ?: continue
-            if (value == JSONObject.NULL) continue
-            val text = value.toString().trim()
-            if (text.isNotBlank() && text != "null" && text != "{}" && text != "[]") return text
+            val text = usefulMessage(value)
+            if (text.isNotBlank()) return text
+        }
+        return findNamedMessage(root)
+    }
+
+    private fun usefulMessage(value: Any?): String {
+        if (value == null || value == JSONObject.NULL) return ""
+        val text = value.toString().trim()
+        return if (text.isBlank() || text == "null" || text == "{}" || text == "[]") "" else text
+    }
+
+    private fun findNamedMessage(value: Any?): String {
+        when (value) {
+            is JSONObject -> {
+                val name = value.optString("name")
+                if (name.equals("message", ignoreCase = true) ||
+                    name.equals("error", ignoreCase = true) ||
+                    name.equals("detail", ignoreCase = true)) {
+                    usefulMessage(value.opt("value")).takeIf { it.isNotBlank() }?.let { return it }
+                }
+                val it = value.keys()
+                while (it.hasNext()) {
+                    val key = it.next()
+                    if (key != "output_image" && key != "image") {
+                        val found = findNamedMessage(value.opt(key))
+                        if (found.isNotBlank()) return found
+                    }
+                }
+            }
+            is JSONArray -> for (i in 0 until value.length()) {
+                val found = findNamedMessage(value.opt(i))
+                if (found.isNotBlank()) return found
+            }
+            is String -> {
+                val trimmed = value.trim()
+                if (trimmed.startsWith("{") && trimmed.length < 1_000_000) {
+                    try { return findNamedMessage(JSONObject(trimmed)) } catch (_: Exception) { return "" }
+                }
+            }
         }
         return ""
     }
