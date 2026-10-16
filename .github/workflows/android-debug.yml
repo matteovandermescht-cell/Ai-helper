@@ -1,6 +1,14 @@
 name: Android Debug APK
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android-debug.yml'
 permissions:
   contents: read
 jobs:
@@ -12,6 +20,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: android-actions/setup-android@v3
       - name: Install Gradle 8.9 for official wrapper generation
         uses: gradle/actions/setup-gradle@v4
         with:
