@@ -80,7 +80,8 @@ class OverlayController(
 
     fun update(found: List<Detection>, inferenceWidth: Int, inferenceHeight: Int,
                frameWidth: Int, frameHeight: Int, durationMs: Long, fps: Float,
-               rotation: Int, modelName: String, modelLoaded: Boolean) {
+               rotation: Int, modelName: String, modelLoaded: Boolean,
+               decision: DecisionSnapshot) {
         handler.post {
             modelW = max(1, inferenceWidth)
             modelH = max(1, inferenceHeight)
@@ -92,7 +93,11 @@ class OverlayController(
             debugInfo = "Frame " + frameW + "x" + frameH + "; Modellbild " + modelW + "x" + modelH +
                 "; Rotation " + rotation + " Grad\nModell: " + modelName + "; geladen: " + modelLoaded +
                 "\nMessdauer: " + durationMs + " ms; gemessene FPS: " + String.format(Locale.US, "%.2f", fps) +
-                "\nKlassen: " + classes + "\nSteuerung blockiert: kein Modell geladen"
+                "\nKlassen: " + classes +
+                "\nZustand: " + decision.state + " (Kandidat: " + decision.candidate +
+                ", Folgebeobachtungen: " + decision.consecutiveObservations + ")" +
+                "\nVorschlag: " + decision.suggestion +
+                "\nSteuerung: AUS · keine Eingabe wurde ausgelöst"
             refreshStatus()
         }
     }
