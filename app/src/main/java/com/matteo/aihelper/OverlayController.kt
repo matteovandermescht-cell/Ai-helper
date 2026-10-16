@@ -134,7 +134,7 @@ class OverlayController(
         }
         val header = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val title = TextView(context).apply {
-            text = "AI Helper  ⋮"
+            text = "BrawlPilot  ⋮"
             setTextColor(Color.WHITE)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
@@ -165,6 +165,8 @@ class OverlayController(
             })
         }
         header.addView(title, LinearLayout.LayoutParams(0, dp(38), 1f))
+        // STOPP stays reachable while the panel is collapsed.
+        header.addView(button("STOPP", 0xFFB71C1C.toInt()) { onStop() })
         header.addView(button("−") { collapsed = !collapsed; updatePanelBody() })
         header.addView(button("×") {
             // Closing the panel must not leave an invisible capture/overlay session running.
@@ -180,13 +182,18 @@ class OverlayController(
             onDetectionToggle(detectionOn)
             refreshStatus()
         })
-        row1.addView(button("Auto-Play gesperrt") {
+        row1.addView(button("Trockenlauf") {
+            Toast.makeText(context, "Trockenlauf: zeigt nur Diagnose und Vorschläge; keine Eingaben werden ausgeführt.", Toast.LENGTH_LONG).show()
+            debugOn = true
+            debugText?.visibility = View.VISIBLE
+        })
+        row1.addView(button("Pilotmodus gesperrt") {
             onStopAutoPlay()
-            Toast.makeText(context, "Auto-Play gesperrt: kein trainiertes Modell, keine validierte Koordinatenkalibrierung und keine Eingabesteuerung.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Pilotmodus nicht verfügbar: trainiertes Modell, validierte Koordinaten und getestete Eingabesteuerung fehlen. Es wurden keine Eingaben ausgeführt.", Toast.LENGTH_LONG).show()
         }.apply {
             isEnabled = false
             alpha = 0.65f
-            contentDescription = "Auto-Play deaktiviert: Modell, Kalibrierung und Eingabesteuerung fehlen"
+            contentDescription = "Pilotmodus gesperrt: Modell, Kalibrierung und getestete Eingabesteuerung fehlen"
         })
         root.addView(row1)
         val row2 = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
@@ -225,8 +232,10 @@ class OverlayController(
             else -> "VERALTET"
         }
         val ageText = if (age == null) "keine Vorhersage" else age.toString() + " ms"
-        statusText?.text = "Erkennung: " + (if (detectionOn) "AN" else "AUS") +
-            " · " + rec + "\nModell: " + currentModelName + "\nSteuerung: AUS · Ergebnisalter: " + ageText
+        statusText?.text = "Modus: Beobachten · keine Eingaben" +
+            "\nErkennung: " + (if (detectionOn) "AN" else "AUS") +
+            " · " + rec + "\nModell: " + currentModelName +
+            "\nPilotmodus: GESPERRT · Steuerung nicht implementiert · Ergebnisalter: " + ageText
         debugText?.text = debugInfo + if (age == null) "\nNoch kein Ergebnis" else "\nErgebnisalter aktuell: " + age + " ms"
     }
 
