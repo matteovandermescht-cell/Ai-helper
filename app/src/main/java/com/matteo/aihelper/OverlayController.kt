@@ -185,12 +185,14 @@ class OverlayController(
             onDetectionToggle(detectionOn)
             refreshStatus()
         })
-        row1.addView(button("Trockenlauf") {
+        root.addView(row1)
+        val modeRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        modeRow.addView(button("Trockenlauf") {
             Toast.makeText(context, "Trockenlauf: zeigt nur Diagnose und Vorschläge; keine Eingaben werden ausgeführt.", Toast.LENGTH_LONG).show()
             debugOn = true
             debugText?.visibility = View.VISIBLE
         })
-        row1.addView(button("Pilotmodus gesperrt") {
+        modeRow.addView(button("Pilotmodus gesperrt") {
             onStopAutoPlay()
             Toast.makeText(context, "Pilotmodus nicht verfügbar: trainiertes Modell, validierte Koordinaten und getestete Eingabesteuerung fehlen. Es wurden keine Eingaben ausgeführt.", Toast.LENGTH_LONG).show()
         }.apply {
@@ -198,7 +200,7 @@ class OverlayController(
             alpha = 0.65f
             contentDescription = "Pilotmodus gesperrt: Modell, Kalibrierung und getestete Eingabesteuerung fehlen"
         })
-        root.addView(row1)
+        root.addView(modeRow)
         val row2 = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
         row2.addView(button("Debug anzeigen") {
             debugOn = !debugOn
