@@ -248,10 +248,8 @@ class OverlayController(
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
             if (items.isEmpty()) return
-            // Current model image preserves the captured frame's aspect ratio; coordinates are pixel-based.
-            val sx = width.toFloat() / modelWidth
-            val sy = height.toFloat() / modelHeight
             items.forEach { d ->
+                val mapped = CoordinateTransform.mapBox(d, modelWidth, modelHeight, width, height) ?: return@forEach
                 val color = when (d.label.lowercase(Locale.ROOT)) {
                     "player" -> 0xFF00E5FF.toInt()
                     "enemy" -> 0xFFFF5252.toInt()
@@ -260,7 +258,7 @@ class OverlayController(
                     else -> 0xFFE040FB.toInt()
                 }
                 boxPaint.color = color; textPaint.color = color
-                val rect = RectF(d.left * sx, d.top * sy, d.right * sx, d.bottom * sy)
+                val rect = RectF(mapped[0], mapped[1], mapped[2], mapped[3])
                 canvas.drawRect(rect, boxPaint)
                 canvas.drawText(d.label + " " + String.format(Locale.US, "%.2f", d.confidence),
                     rect.left, (rect.top - 6f).coerceAtLeast(26f), textPaint)
