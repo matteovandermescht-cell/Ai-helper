@@ -171,10 +171,11 @@ class CaptureService : Service() {
             ) else fullBitmap
 
             val startNs = SystemClock.elapsedRealtimeNanos()
-            val found = if (detectionEnabled && detector.isModelLoaded) detector.detect(inferenceBitmap!!) else emptyList()
-            val durationMs = if (detectionEnabled && detector.isModelLoaded) {
+            val inferenceActive = detectionEnabled && detector.isModelLoaded
+            val found = if (inferenceActive) detector.detect(inferenceBitmap!!) else emptyList()
+            val durationMs: Long? = if (inferenceActive) {
                 ((SystemClock.elapsedRealtimeNanos() - startNs) / 1_000_000L).coerceAtLeast(0L)
-            } else 0L
+            } else null
             val resultAt = SystemClock.elapsedRealtime()
             fpsFrames++
             if (fpsWindowStarted == 0L) fpsWindowStarted = resultAt
